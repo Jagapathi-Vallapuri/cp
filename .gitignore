@@ -1,0 +1,62 @@
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+*.swp
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Logs / temp ---
+*.log
+logs/
+*.tmp
+*.temp
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+venv/
+ENV/
+
+# --- Node / Vite (client/) ---
+node_modules/
+dist/
+.cache/
+.vite/
+
+# --- Java / Maven (code_judge/) ---
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven tooling / IDE files
+.mvn/wrapper/maven-wrapper.jar
+.project
+.classpath
+.settings/
+
+# --- C/C++ (CodeExecutor/) ---
+*.o
+*.obj
+*.exe
+*.out
+
+CodeExecutor/worker
+
+# --- Docker ---
+*.pid
