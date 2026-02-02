@@ -24,6 +24,7 @@ public class Submission {
     private LocalDateTime submissionTime;
     private String status;
     private String verdict;
+    private String error;
     private Long problemId;
     private String username;
 }

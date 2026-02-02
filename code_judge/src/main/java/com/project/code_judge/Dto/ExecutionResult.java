@@ -8,4 +8,5 @@ public class ExecutionResult {
     private String verdict;
     private Long time_ms;
     private Long memory_kb;
+    private String error;
 }

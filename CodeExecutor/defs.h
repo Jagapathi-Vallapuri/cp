@@ -1,8 +1,7 @@
 #pragma once
 #include <string>
 
-enum Verdict
-{
+enum Verdict {
     ACCEPTED,
     WRONG_ANSWER,
     TIME_LIMIT_EXCEEDED,
@@ -12,20 +11,10 @@ enum Verdict
     COMPILATION_ERROR
 };
 
-struct ExecutionResult
-{
+struct ExecutionResult {
     Verdict verdict;
     long time_used_ms;
     long memory_used_kb;
     int exit_code;
-};
-
-struct LanguageConfig
-{
-    std::string name = "unknown";
-    std::string src_filename = "";
-    std::string compile_cmd = "";
-    std::string run_cmd = "";
-    std::string run_args = "";
-    bool needs_compilation = false;
+    std::string stderr_output;
 };

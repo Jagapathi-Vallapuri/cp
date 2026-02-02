@@ -21,6 +21,7 @@ public class ResultConsumer {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new RuntimeException("Submission not found."));
         submission.setStatus("COMPLETED");
+        submission.setError(result.getError());
         submission.setVerdict(result.getVerdict());
 
         submissionRepository.save(submission);
