@@ -11,9 +11,16 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
     public static final String SUBMISSION_QUEUE = "submission_queue";
+    public static final String RESULT_QUEUE = "result_queue";
 
+    @Bean
     public Queue submissionQueue(){
         return new Queue(SUBMISSION_QUEUE, true);
+    }
+
+    @Bean
+    public Queue resultQueue(){
+        return new Queue(RESULT_QUEUE, true);
     }
 
     @Bean

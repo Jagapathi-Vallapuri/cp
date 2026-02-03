@@ -3,6 +3,8 @@ package com.project.code_judge.Service;
 import com.project.code_judge.Config.RabbitMQConfig;
 import com.project.code_judge.Entity.Problem;
 import com.project.code_judge.Entity.Submission;
+import com.project.code_judge.Entity.SubmissionStatus;
+import com.project.code_judge.Entity.Verdict;
 import com.project.code_judge.Repository.ProblemRepository;
 import com.project.code_judge.Repository.SubmissionRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,22 +28,25 @@ public class SubmissionService {
 
         Submission submission = new Submission();
         submission.setCode(code);
-        submission.setProblemId(problemId);
         submission.setSubmissionTime(LocalDateTime.now());
         submission.setUsername(username);
-        submission.setStatus("PENDING");
-        submission.setVerdict("WAITING");
+        submission.setStatus(SubmissionStatus.PENDING);
         submission.setLanguage(language);
+        submission.setProblem(problem);
 
         Submission savesSubmission = submissionRepository.save(submission);
 
+
         Map<String, Object> message = new HashMap<>();
-        message.put("id", savesSubmission.getId());
+        message.put("id", savesSubmission.getId().toString());
         message.put("code", savesSubmission.getCode());
-        message.put("input", problem.getTestInput());
-        message.put("expected_output", problem.getExpectedOutput());
-        message.put("time_limit", problem.getTimeLimitSeconds());
-        message.put("language", language);
+        message.put("time_limit", submission.getProblem().getTimeLimitSeconds());
+        message.put("memory_limit", submission.getProblem().getMemoryLimitMb());
+        message.put("language", submission.getLanguage());
+        message.put("problem_id", submission.getProblem().getId());
+        message.put("test_case_count", submission.getProblem().getTestCaseCount());
+
+
 
         rabbitTemplate.convertAndSend(RabbitMQConfig.SUBMISSION_QUEUE, message);
         System.out.println("Sent submission " + savesSubmission.getId() + " to Queue");

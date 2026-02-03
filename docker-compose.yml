@@ -28,9 +28,12 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    user: root
     networks:
       - judge-net
-
+    privileged: true
+    volumes:
+      - ./judge_data:/app/judge_data
   rabbitmq:
     image: rabbitmq:3-management
     ports:

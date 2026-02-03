@@ -27,7 +27,7 @@ function App() {
         if (subId && status !== "COMPLETED") {
             interval = setInterval(async () => {
                 try {
-                    const res = await fetch(`http://localhost:8080/api/submit/${subId}`);
+                    const res = await fetch(`http://localhost:8080/api/submissions/${subId}`);
                     const data = await res.json();
                     setStatus(data.status);
                     if (data.status === "COMPLETED") {
@@ -49,7 +49,7 @@ function App() {
         setVerdict("");
 
         try {
-            const response = await fetch("http://localhost:8080/api/submit", {
+            const response = await fetch("http://localhost:8080/api/submissions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

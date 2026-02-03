@@ -1,5 +1,6 @@
 package com.project.code_judge.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,9 +23,23 @@ public class Submission {
     private String language;
 
     private LocalDateTime submissionTime;
-    private String status;
-    private String verdict;
+
+    @Enumerated(EnumType.STRING)
+    private SubmissionStatus status ;
+
+    @Enumerated(EnumType.STRING)
+    private Verdict verdict;
+
+    @Column(columnDefinition = "TEXT")
     private String error;
-    private Long problemId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "problem_id", nullable = false)
+    @JsonIgnore
+    private Problem problem;
+
     private String username;
+
+    private Long timeTaken;
+    private Long memoryUsed;
 }

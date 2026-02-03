@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/submit")
+@RequestMapping("/api/submissions")
 @CrossOrigin(origins = "http://localhost:5173")
 public class SubmissionController {
     private final SubmissionService submissionService;
@@ -33,7 +33,6 @@ public class SubmissionController {
         return submissionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Submission not found."));
     }
-
 
 }
 

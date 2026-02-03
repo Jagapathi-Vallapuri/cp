@@ -14,17 +14,17 @@ public class Problem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     private String title;
-
-    @Column
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(columnDefinition = "TEXT")
-    private String testInput;
+    @Column(unique = true, nullable = false)
+    private String slug;
 
-    @Column(columnDefinition = "TEXT")
-    private String expectedOutput;
-
+    private Integer testCaseCount;
     private Double timeLimitSeconds;
     private Integer memoryLimitMb;
+    @Enumerated(value = EnumType.STRING)
+    private Difficulty difficulty;
 }
