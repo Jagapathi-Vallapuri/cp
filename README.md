@@ -1,10 +1,11 @@
 # Distributed Code Judge
 
-A small distributed “code judge” system:
+End-to-end, locally runnable online judge:
 
-- A React/Vite frontend for submitting code.
-- A Spring Boot backend that stores submissions in Postgres and publishes jobs to RabbitMQ.
-- A C++ worker (built as a Docker image) that consumes jobs from RabbitMQ, executes code, and publishes results.
+- React/Vite frontend for submitting code and polling results.
+- Spring Boot API for storing submissions and managing problems.
+- RabbitMQ for job dispatching.
+- C++ worker container that compiles/runs submissions against test cases and publishes verdicts.
 
 ## Repository layout
 
@@ -14,12 +15,53 @@ A small distributed “code judge” system:
 - [docker-compose.yml](docker-compose.yml) — Postgres + RabbitMQ + worker services
 - [stress_test.py](stress_test.py) — simple load generator for the submit endpoint
 
+## Directory structure
+
+```
+.
+├── client/                 # React/Vite UI
+├── code_judge/             # Spring Boot API
+├── CodeExecutor/           # C++ judge worker (Docker image)
+├── judge_data/             # Local test cases (mounted into worker)
+├── docker-compose.yml      # Postgres + RabbitMQ + worker services
+├── stress_test.py          # Submit endpoint load generator
+└── README.md
+```
+
 ## Architecture (high level)
 
-1. The frontend calls the backend `POST /api/submit` with code, problemId, username, and language.
-2. The backend stores a `Submission` with status `PENDING` and publishes a message to the RabbitMQ queue `submission_queue`.
-3. One of the C++ workers consumes the job, executes it, determines a verdict, and publishes to `result_queue`.
+1. The frontend calls the backend `POST /api/submissions` with code, `problemId`, username, and language.
+2. The backend stores a `Submission` with status `PENDING` and publishes a job to RabbitMQ (`submission_queue`).
+3. A C++ worker consumes the job, runs it against test cases, and publishes a result to `result_queue`.
 4. The backend listens to `result_queue` and updates the `Submission` as `COMPLETED`.
+
+### Architecture diagram (Mermaid)
+
+```mermaid
+flowchart LR
+  UI[React/Vite Client] -->|"POST /api/submissions"| API[Spring Boot API]
+  API -->|"insert Submission"| DB[(Postgres)]
+  API -->|"publish job"| MQ[(RabbitMQ)]
+  MQ -->|"consume job"| WORKER[C++ Judge Worker]
+  WORKER -->|"read test cases"| DATA[(judge_data)]
+  WORKER -->|"publish result"| MQ
+  MQ -->|"result_queue"| API
+  API -->|"GET /api/submissions/{id}"| UI
+
+  %% ===== Colors =====
+  classDef client fill:#E3F2FD,stroke:#1E88E5,color:#0D47A1,stroke-width:2px;
+  classDef backend fill:#E8F5E9,stroke:#43A047,color:#1B5E20,stroke-width:2px;
+  classDef queue fill:#FFF3E0,stroke:#FB8C00,color:#E65100,stroke-width:2px;
+  classDef worker fill:#F3E5F5,stroke:#8E24AA,color:#4A148C,stroke-width:2px;
+  classDef storage fill:#ECEFF1,stroke:#546E7A,color:#263238,stroke-width:2px;
+
+  class UI client;
+  class API backend;
+  class MQ queue;
+  class WORKER worker;
+  class DB,DATA storage;
+
+```
 
 ## Local development
 
@@ -61,29 +103,37 @@ From the repo root:
 
 The backend reads connection settings from [code_judge/src/main/resources/application.properties](code_judge/src/main/resources/application.properties) and is preconfigured for the Docker Compose ports.
 
-### 3) Seed at least one Problem row
+### 3) Create a Problem and upload test cases
 
-Submissions reference a `problemId`. If there is no `Problem` in the database, the backend will reject submissions.
+Submissions reference a `problemId`. Create a problem first, then upload a zip of test cases.
 
-Example SQL (creates `id=1`):
+Create a problem:
 
-```sql
-INSERT INTO problem (title, description, test_input, expected_output, time_limit_seconds, memory_limit_mb)
-VALUES (
-  'Sample: Echo',
-  'Print the input exactly.',
-  'hello\n',
-  'hello\n',
-  2.0,
-  256
-);
+```bash
+curl -X POST http://localhost:8080/api/admin/problems \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Sample: Add One",
+    "description": "Read an integer and output x + 1.",
+    "slug": "add-one",
+    "difficulty": "EASY",
+    "timeLimitSeconds": 2,
+    "memoryLimitMb": 256
+  }'
 ```
 
-You can connect to Postgres at `localhost:5433` using:
+Upload test cases for `problemId=1`:
 
-- DB: `judge_db`
-- User: `postgres`
-- Password: `password`
+```bash
+curl -X POST http://localhost:8080/api/admin/problems/1/testcases \
+  -F "file=@/path/to/testcases.zip"
+```
+
+Zip layout requirements:
+
+- Files must be named `1_in.txt`, `1_out.txt`, `2_in.txt`, `2_out.txt`, etc.
+- The backend extracts to `judge.data.path` (configure in `code_judge/src/main/resources/application.properties`).
+- The worker reads test cases from `JUDGE_DATA_DIR` (set in `docker-compose.yml`; defaults to `./judge_data` inside the container).
 
 ### 4) Run the frontend
 
@@ -99,12 +149,12 @@ The backend enables CORS for `http://localhost:5173` (see `@CrossOrigin` in the 
 
 ### Submit code
 
-- `POST http://localhost:8080/api/submit`
+- `POST http://localhost:8080/api/submissions`
 
 Example:
 
 ```bash
-curl -X POST http://localhost:8080/api/submit \
+curl -X POST http://localhost:8080/api/submissions \
   -H "Content-Type: application/json" \
   -d '{
     "problemId": 1,
@@ -116,10 +166,10 @@ curl -X POST http://localhost:8080/api/submit \
 
 ### Poll submission status
 
-- `GET http://localhost:8080/api/submit/{uuid}`
+- `GET http://localhost:8080/api/submissions/{uuid}`
 
 ```bash
-curl http://localhost:8080/api/submit/<submission-uuid>
+curl http://localhost:8080/api/submissions/<submission-uuid>
 ```
 
 ## Stress test
