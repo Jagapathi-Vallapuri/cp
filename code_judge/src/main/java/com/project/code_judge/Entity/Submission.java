@@ -13,6 +13,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "submissions")
 public class Submission {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -37,6 +38,10 @@ public class Submission {
     @JoinColumn(name = "problem_id", nullable = false)
     @JsonIgnore
     private Problem problem;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     private String username;
 

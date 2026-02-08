@@ -60,3 +60,4 @@ CodeExecutor/worker
 
 # --- Docker ---
 *.pid
+judge_data/

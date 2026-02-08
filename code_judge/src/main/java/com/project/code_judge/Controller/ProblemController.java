@@ -8,20 +8,29 @@ import org.springframework.web.bind.annotation.*;
 import com.project.code_judge.Dto.CreateProblem;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/")
+@RequestMapping("/api")
+@CrossOrigin(origins = "http://localhost:5173/")
 public class ProblemController {
 
     @Autowired
     ProblemService problemService;
 
-    @PostMapping("admin/problems")
+
+    @PostMapping("/admin/problems")
     public ResponseEntity<Problem> createProblem(@RequestBody CreateProblem dto){
         Problem created = problemService.createProblem(dto);
         return ResponseEntity.ok(created);
     }
 
-    @PostMapping("admin/problems/{id}/testcases")
+    @GetMapping("/problems/")
+    public ResponseEntity<List<Problem>> getProblems(){
+        return ResponseEntity.ok(problemService.getAllProblems());
+    }
+
+    @PostMapping("/admin/problems/{id}/testcases")
     public ResponseEntity<String> uploadTestCases(@PathVariable Long id, @RequestParam("file") MultipartFile file){
         try{
             problemService.uploadTestCases(id, file);
@@ -29,6 +38,11 @@ public class ProblemController {
         }catch (Exception e){
             return ResponseEntity.badRequest().body("Upload Failed: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/problems/{id}")
+    public ResponseEntity<Problem> getProblemDetails(@PathVariable Long id){
+        return ResponseEntity.ok(problemService.getProblem(id));
     }
 }
 

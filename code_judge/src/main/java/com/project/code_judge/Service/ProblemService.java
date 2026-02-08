@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.stream.Stream;
 
 @Service
@@ -59,4 +60,13 @@ public class ProblemService {
         }
         problemRepository.save(problem);
     }
+
+    public List<Problem> getAllProblems(){
+        return problemRepository.findAll();
+    }
+
+    public Problem getProblem(Long id){
+        return problemRepository.findById(id).orElseThrow(() -> new RuntimeException("Problem not found"));
+    }
+
 }
