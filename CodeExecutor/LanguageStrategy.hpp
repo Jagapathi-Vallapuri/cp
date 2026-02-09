@@ -12,15 +12,9 @@ public:
     virtual std::string get_src_filename(const std::string& id) = 0;
     virtual bool needs_compilation() = 0;
     virtual std::string get_compile_cmd(const std::string& id) = 0;
-    virtual std::string get_run_cmd(const std::string& id) = 0; // The binary (e.g. "java", "python3")
-    
-    // Returns the full list of arguments for execvp
-    virtual std::vector<std::string> get_run_args(const std::string& id, int memory_limit_mb) = 0;
-    
-    // Different languages need different OS-level memory limits (RLIMIT_AS)
-    virtual rlim_t get_rlimit_as(int memory_limit_mb) = 0;
-    
-    // Cleanup compiled files
+    virtual std::string get_run_cmd(const std::string& id) = 0;
+    virtual std::vector<std::string> get_run_args(const std::string& id, int memory_limit_mb) = 0;    
+    virtual rlim_t get_rlimit_as(int memory_limit_mb) = 0;    
     virtual void cleanup(const std::string& id) = 0;
 };
 
@@ -41,7 +35,7 @@ public:
     }
     
     rlim_t get_rlimit_as(int memory_limit_mb) override {
-        return (rlim_t)memory_limit_mb * 1024 * 1024; // Exact limit
+        return (rlim_t)memory_limit_mb * 1024 * 1024;
     }
 
     void cleanup(const std::string& id) override {
@@ -85,9 +79,9 @@ public:
         return {
             "java",
             "-Xmx" + std::to_string(memory_limit_mb) + "m", // Max Heap
-            "-Xms16m",             // Start small
-            "-XX:+UseSerialGC",    // Low overhead GC
-            "-Xss64m",             // Deep recursion support
+            "-Xms16m",
+            "-XX:+UseSerialGC",
+            "-Xss64m",
             "-XX:+ExitOnOutOfMemoryError",
             "-cp", ".", 
             "Main"
@@ -95,7 +89,7 @@ public:
     }
     
     rlim_t get_rlimit_as(int memory_limit_mb) override {
-        return RLIM_INFINITY; // Let JVM reserve virtual memory; Docker/Xmx handles physical
+        return RLIM_INFINITY;
     }
 
     void cleanup(const std::string& id) override {

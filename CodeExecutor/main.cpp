@@ -24,7 +24,7 @@ int main()
     if (!rabbit_host) rabbit_host = "localhost";
 
     const char *data_dir_env = std::getenv("JUDGE_DATA_DIR");
-    std::string base_data_path = data_dir_env ? data_dir_env : "./judge_data"; // Removed trailing slash for safety
+    std::string base_data_path = data_dir_env ? data_dir_env : "./judge_data";
 
     try
     {
@@ -118,7 +118,6 @@ int main()
                         break;
                     }
 
-                    // Cast double time_limit to long for the Sandbox
                     ExecutionResult res = worker.run(*strategy, id, in_file, user_out_file, exp_file, static_cast<long>(std::ceil(time_lim)), mem_lim);
 
                     max_time = std::max(max_time, res.time_used_ms);
@@ -128,12 +127,11 @@ int main()
 
                     if (res.verdict != ACCEPTED)
                     {
-                        // --- FIX 2: Match Java Enums exactly ---
                         const char *v_str[] = {
                             "ACCEPTED", 
                             "WRONG_ANSWER", 
-                            "TIME_LIMIT_EXCEEDED",   // Was "TLE"
-                            "MEMORY_LIMIT_EXCEEDED", // Was "MLE"
+                            "TIME_LIMIT_EXCEEDED",
+                            "MEMORY_LIMIT_EXCEEDED",
                             "RUNTIME_ERROR", 
                             "INTERNAL_ERROR", 
                             "COMPILATION_ERROR"
@@ -157,13 +155,10 @@ int main()
                 }
             }
 
-            // Publish result
             channel->BasicPublish("", "result_queue", BasicMessage::Create(res_json.dump()));
             std::cout << "[DONE] " << id << ": " << res_json["verdict"] << std::endl;
 
-            // Cleanup
             strategy->cleanup(id);
-            // --- FIX 4: Delete the source code file ---
             remove(src_file.c_str()); 
         }
         catch (const std::exception &e)

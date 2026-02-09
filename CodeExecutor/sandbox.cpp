@@ -11,9 +11,6 @@
 #include <vector>
 #include <memory>
 
-// ==============================================================================
-// 1. Cgroup Manager (Encapsulated Logic)
-// ==============================================================================
 namespace CgroupUtils {
 
     const std::string ROOT_CG = "/sys/fs/cgroup";
@@ -22,7 +19,7 @@ namespace CgroupUtils {
 
     void write_file(const std::string &path, const std::string &value) {
         std::ofstream ofs(path);
-        if (!ofs.is_open()) return; // Fail silently for optional files
+        if (!ofs.is_open()) return;
         ofs << value;
         ofs.flush();
     }
@@ -32,7 +29,6 @@ namespace CgroupUtils {
         return (stat((ROOT_CG + "/cgroup.controllers").c_str(), &buffer) == 0);
     }
 
-    // Solves "Device Busy" by moving all root processes to /worker_service
     void evacuate_root() {
         if (!is_v2()) return;
         
@@ -43,7 +39,6 @@ namespace CgroupUtils {
         int pid;
         while (root_procs >> pid) pids.push_back(pid);
         
-        // Ensure we move ourselves too
         pids.push_back(0); 
 
         for (int p : pids) {
@@ -58,21 +53,17 @@ namespace CgroupUtils {
         if (is_v2()) {
             std::string job_cg = JUDGE_ROOT + "/job_" + pid_str;
             
-            // 1. Ensure Root is clean & Controllers enabled
             evacuate_root();
             write_file(ROOT_CG + "/cgroup.subtree_control", "+memory +cpu");
 
-            // 2. Setup Judge Root
             mkdir(JUDGE_ROOT.c_str(), 0755);
             write_file(JUDGE_ROOT + "/cgroup.subtree_control", "+memory +cpu");
 
-            // 3. Setup Job Cgroup
             mkdir(job_cg.c_str(), 0755);
             write_file(job_cg + "/memory.max", limit);
             write_file(job_cg + "/memory.swap.max", "0");
             write_file(job_cg + "/cgroup.procs", pid_str);
         } else {
-            // Legacy V1 Fallback
             std::string job_cg = ROOT_CG + "/memory/judge_" + pid_str;
             mkdir(job_cg.c_str(), 0755);
             write_file(job_cg + "/memory.limit_in_bytes", limit);
@@ -91,9 +82,6 @@ namespace CgroupUtils {
     }
 }
 
-// ==============================================================================
-// 2. IO & System Helpers
-// ==============================================================================
 std::string read_file_limited(const std::string &filename, size_t max_bytes) {
     std::ifstream file(filename);
     if (!file.is_open()) return "";
@@ -124,12 +112,8 @@ void redirect_std_streams(const std::string &in, const std::string &out, const s
     close(in_fd); close(out_fd); close(err_fd);
 }
 
-// ==============================================================================
-// 3. Main Logic
-// ==============================================================================
 
 bool Sandbox::is_correct_answer(const std::string &out_path, const std::string &exp_path) {
-    // -w ignores whitespace, -B ignores blank lines
     std::string cmd = "diff -w -B " + out_path + " " + exp_path + " > /dev/null";
     return (system(cmd.c_str()) == 0);
 }
@@ -153,24 +137,19 @@ ExecutionResult Sandbox::run(LanguageStrategy &strategy,
         // --- CHILD PROCESS ---
         close(pipe_fd[1]);
         
-        // 1. Sync: Wait for Parent to setup Cgroups
         char buffer;
         if (read(pipe_fd[0], &buffer, 1) <= 0) _exit(INTERNAL_ERROR);
         close(pipe_fd[0]);
 
-        // 2. Isolation
         unshare(CLONE_NEWNET);
-
-        // 3. I/O & Limits
         redirect_std_streams(input_file, output_file, error_file);
         
         rlimit cpu = {(rlim_t)time_limit_sec, (rlim_t)time_limit_sec + 1};
         setrlimit(RLIMIT_CPU, &cpu);
         
-        rlimit fsize = {10 * 1024 * 1024, 10 * 1024 * 1024}; // 10MB
+        rlimit fsize = {10 * 1024 * 1024, 10 * 1024 * 1024};
         setrlimit(RLIMIT_FSIZE, &fsize);
 
-        // 4. Exec
         auto args = strategy.get_run_args(id, memory_limit_mb);
         auto c_args = to_c_args(args);
         execvp(c_args[0], c_args.data());
@@ -182,21 +161,16 @@ ExecutionResult Sandbox::run(LanguageStrategy &strategy,
         // --- PARENT PROCESS ---
         close(pipe_fd[0]);
 
-        // 1. Setup Cgroups
         CgroupUtils::setup(pid, memory_limit_mb);
 
-        // 2. Signal Child to Start
         write(pipe_fd[1], "X", 1);
         close(pipe_fd[1]);
-
-        // 3. Monitor
         int status;
         struct rusage usage;
         wait4(pid, &status, 0, &usage);
 
         CgroupUtils::cleanup(pid);
 
-        // 4. Generate Result
         ExecutionResult result;
         result.time_used_ms = (usage.ru_utime.tv_sec * 1000) + (usage.ru_utime.tv_usec / 1000);
         result.memory_used_kb = usage.ru_maxrss;
