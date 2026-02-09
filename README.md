@@ -30,10 +30,15 @@ End-to-end, locally runnable online judge:
 
 ## Architecture (high level)
 
-1. The frontend calls the backend `POST /api/submissions` with code, `problemId`, username, and language.
+1. The frontend calls the backend `POST /api/submissions` with code, `problemId`, and language.
 2. The backend stores a `Submission` with status `PENDING` and publishes a job to RabbitMQ (`submission_queue`).
 3. A C++ worker consumes the job, runs it against test cases, and publishes a result to `result_queue`.
 4. The backend listens to `result_queue` and updates the `Submission` as `COMPLETED`.
+
+Frontend notes:
+
+- Problem descriptions render Markdown with KaTeX math support.
+- Problem list uses a popover drawer to keep the editor width stable.
 
 ### Architecture diagram (Mermaid)
 
@@ -112,6 +117,7 @@ Create a problem:
 ```bash
 curl -X POST http://localhost:8080/api/admin/problems \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "title": "Sample: Add One",
     "description": "Read an integer and output x + 1.",
@@ -126,6 +132,7 @@ Upload test cases for `problemId=1`:
 
 ```bash
 curl -X POST http://localhost:8080/api/admin/problems/1/testcases \
+  -H "Authorization: Bearer <token>" \
   -F "file=@/path/to/testcases.zip"
 ```
 
@@ -147,6 +154,27 @@ The backend enables CORS for `http://localhost:5173` (see `@CrossOrigin` in the 
 
 ## API
 
+### Auth
+
+- `POST http://localhost:8080/api/auth/register`
+- `POST http://localhost:8080/api/auth/login`
+
+Register expects `username`, `email`, `password`.
+Login expects `email`, `password` and returns a `token` plus `username`.
+
+Example login:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "demo@example.com",
+    "password": "password"
+  }'
+```
+
+Use the returned `token` as a Bearer token for protected endpoints.
+
 ### Submit code
 
 - `POST http://localhost:8080/api/submissions`
@@ -156,20 +184,22 @@ Example:
 ```bash
 curl -X POST http://localhost:8080/api/submissions \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "problemId": 1,
-    "username": "demo",
     "language": "python",
     "code": "print(\"hello\")\n"
   }'
 ```
+
+Note: the backend reads the username from the JWT principal. Any `username` field in the request body is ignored.
 
 ### Poll submission status
 
 - `GET http://localhost:8080/api/submissions/{uuid}`
 
 ```bash
-curl http://localhost:8080/api/submissions/<submission-uuid>
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/submissions/<submission-uuid>
 ```
 
 ## Stress test
@@ -186,3 +216,9 @@ Adjust `TOTAL_JOBS` and `SLEEP_TIME` inside the script to change load.
 - If workers are not processing jobs, check RabbitMQ queues in `http://localhost:15672`.
 - If scaling doesn’t work, use `docker compose up --scale ...` (Compose ignores `deploy.replicas`).
 - If the backend cannot connect to Postgres/RabbitMQ, verify containers are healthy and that the mapped ports in [docker-compose.yml](docker-compose.yml) match your local config.
+
+## Backend notes
+
+- Authentication uses JWT bearer tokens in the `Authorization` header.
+- All endpoints except `/api/auth/**` require authentication. Admin endpoints are not role-restricted yet.
+- JWT secret and expiration are configured in `code_judge/src/main/resources/application.properties`.

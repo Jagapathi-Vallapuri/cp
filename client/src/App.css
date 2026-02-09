@@ -21,8 +21,31 @@
 
 .layout {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 1.5rem;
+}
+
+.left-rail {
+  position: relative;
+  min-height: calc(100vh - 220px);
+}
+
+.drawer-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  padding: 0.35rem 0.35rem 0.35rem 0;
+}
+
+.drawer-label {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.95rem;
 }
 
 .panel {
@@ -37,18 +60,20 @@
   flex-direction: column;
   gap: 1rem;
   padding: 1.25rem;
-  max-height: calc(100vh - 220px);
   width: 320px;
   overflow: hidden;
   transition: width 0.2s ease, padding 0.2s ease;
 }
 
-.sidebar.collapsed {
-  width: 72px;
-  padding: 1rem 0.5rem;
+.drawer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  height: calc(100vh - 220px);
 }
 
-.sidebar-header {
+.drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -81,14 +106,23 @@
   transform: translate(-50%, -50%) rotate(0deg);
 }
 
-.sidebar.collapsed .sidebar-title {
-  display: none;
+.drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.18);
+  z-index: 4;
+  border-radius: 16px;
 }
 
-.sidebar.collapsed .problem-list,
-.sidebar.collapsed .status-error,
-.sidebar.collapsed p {
-  display: none;
+.drawer-close {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .sidebar-title {
@@ -109,7 +143,7 @@
 .problem-card {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 0.85rem;
+  padding: 0.65rem 0.75rem;
   background: #f8fafc;
   text-align: left;
   transition: all 0.2s ease;
@@ -129,7 +163,7 @@
 
 .problem-card h3 {
   margin: 0 0 0.35rem 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #0f172a;
 }
 
@@ -137,7 +171,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #475569;
 }
 
@@ -163,13 +197,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.workbench {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 1.5rem;
-  align-items: start;
+  width: 100%;
 }
 
 .problem-detail {
@@ -237,7 +265,7 @@
 
 .side-panel {
   position: sticky;
-  top: 1.5rem;
+  top: 0;
   max-height: calc(100vh - 220px);
   overflow: auto;
 }
@@ -587,10 +615,6 @@
 }
 
 @media (max-width: 1100px) {
-  .workbench {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .side-panel {
     position: static;
   }
@@ -601,19 +625,29 @@
     grid-template-columns: 1fr;
   }
 
+  .left-rail {
+    min-height: 0;
+  }
+
   .sidebar {
     width: 100%;
-    max-height: none;
+    height: auto;
+    position: static;
   }
 
-  .sidebar.collapsed {
-    width: 100%;
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    border-radius: 0;
   }
 
-  .sidebar.collapsed .sidebar-title,
-  .sidebar.collapsed .problem-list,
-  .sidebar.collapsed .status-error,
-  .sidebar.collapsed p {
-    display: block;
+  .drawer {
+    position: fixed;
+    top: 64px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    height: auto;
+    max-height: calc(100vh - 96px);
   }
 }

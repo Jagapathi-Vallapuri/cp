@@ -41,6 +41,18 @@ function App() {
     const [copyMessage, setCopyMessage] = useState("");
 
     useEffect(() => {
+        if (!sidebarOpen) return;
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") {
+                setSidebarOpen(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [sidebarOpen]);
+
+    useEffect(() => {
         let isMounted = true;
         const loadProblems = async () => {
             setProblemsLoading(true);
@@ -246,53 +258,93 @@ function App() {
             </header>
 
             <div className="layout">
-                <aside className={`panel sidebar ${sidebarOpen ? "" : "collapsed"}`}>
-                    <div className="sidebar-header">
-                        <h2 className="sidebar-title">Problems</h2>
+                <div className="left-rail">
+                    <div className="drawer-toggle-row">
                         <button
                             className={`sidebar-toggle ${sidebarOpen ? "open" : "closed"}`}
                             type="button"
                             onClick={() => setSidebarOpen((prev) => !prev)}
                             aria-expanded={sidebarOpen}
-                            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                            aria-label={sidebarOpen ? "Collapse problem list" : "Open problem list"}
                         />
+                        <span className="drawer-label">Problems</span>
                     </div>
 
-                    {problemsLoading && <p>Loading problems...</p>}
-                    {problemsError && <p className="status-error">{problemsError}</p>}
+                    {sidebarOpen && (
+                        <>
+                            <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />
+                            <aside className="panel sidebar drawer">
+                                <div className="drawer-header">
+                                    <h2 className="sidebar-title">Problems</h2>
+                                    <button
+                                        className="drawer-close"
+                                        type="button"
+                                        onClick={() => setSidebarOpen(false)}
+                                        aria-label="Close problem list"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
 
-                    <div className="problem-list">
-                        {problems.map((problem) => (
-                            <div
-                                key={problem.id}
-                                className={`problem-card ${selectedProblemId === problem.id ? "active" : ""}`}
-                                onClick={() => setSelectedProblemId(problem.id)}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                        setSelectedProblemId(problem.id);
-                                    }
-                                }}
+                                {problemsLoading && <p>Loading problems...</p>}
+                                {problemsError && <p className="status-error">{problemsError}</p>}
+
+                                <div className="problem-list">
+                                    {problems.map((problem) => (
+                                        <div
+                                            key={problem.id}
+                                            className={`problem-card ${selectedProblemId === problem.id ? "active" : ""}`}
+                                            onClick={() => {
+                                                setSelectedProblemId(problem.id);
+                                                setSidebarOpen(false);
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                    setSelectedProblemId(problem.id);
+                                                    setSidebarOpen(false);
+                                                }
+                                            }}
+                                        >
+                                            <h3>{problem.title}</h3>
+                                            <div className="problem-meta">
+                                                {problem.difficulty && <span className="pill">{problem.difficulty}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </aside>
+                        </>
+                    )}
+
+                    <aside className="panel problem-detail side-panel">
+                        <h2>{selectedProblem?.title || "Select a problem"}</h2>
+                        <div className="problem-markdown">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
                             >
-                                <h3>{problem.title}</h3>
-                                <div className="problem-meta">
-                                    {problem.difficulty && <span className="pill">{problem.difficulty}</span>}
-                                    {problem.testCaseCount != null && (
-                                        <span className="pill">{problem.testCaseCount} cases</span>
-                                    )}
-                                </div>
-                                <div className="problem-description">
-                                    {problem.description || "No statement provided."}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </aside>
+                                {selectedProblem?.description || "Choose a problem from the list to view its statement."}
+                            </ReactMarkdown>
+                        </div>
+                        <div className="detail-meta">
+                            {selectedProblem?.difficulty && <span>Difficulty: {selectedProblem.difficulty}</span>}
+                            {selectedProblem?.timeLimitSeconds != null && (
+                                <span>Time Limit: {selectedProblem.timeLimitSeconds}s</span>
+                            )}
+                            {selectedProblem?.memoryLimitMb != null && (
+                                <span>Memory: {selectedProblem.memoryLimitMb} MB</span>
+                            )}
+                            {selectedProblem?.testCaseCount != null && (
+                                <span>Test Cases: {selectedProblem.testCaseCount}</span>
+                            )}
+                        </div>
+                    </aside>
+                </div>
 
                 <main className="content">
-                    <div className="workbench">
-                        <section className="panel submission-panel code-panel">
+                    <section className="panel submission-panel code-panel">
                         <div className="form-row">
                             <div className="form-field">
                                 <label htmlFor="language">Language</label>
@@ -378,32 +430,7 @@ function App() {
                                 )}
                             </div>
                         )}
-                        </section>
-
-                        <aside className="panel problem-detail side-panel">
-                            <h2>{selectedProblem?.title || "Select a problem"}</h2>
-                            <div className="problem-markdown">
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkMath]}
-                                    rehypePlugins={[rehypeKatex]}
-                                >
-                                    {selectedProblem?.description || "Choose a problem from the list to view its statement."}
-                                </ReactMarkdown>
-                            </div>
-                            <div className="detail-meta">
-                                {selectedProblem?.difficulty && <span>Difficulty: {selectedProblem.difficulty}</span>}
-                                {selectedProblem?.timeLimitSeconds != null && (
-                                    <span>Time Limit: {selectedProblem.timeLimitSeconds}s</span>
-                                )}
-                                {selectedProblem?.memoryLimitMb != null && (
-                                    <span>Memory: {selectedProblem.memoryLimitMb} MB</span>
-                                )}
-                                {selectedProblem?.testCaseCount != null && (
-                                    <span>Test Cases: {selectedProblem.testCaseCount}</span>
-                                )}
-                            </div>
-                        </aside>
-                    </div>
+                    </section>
                 </main>
             </div>
         </div>
