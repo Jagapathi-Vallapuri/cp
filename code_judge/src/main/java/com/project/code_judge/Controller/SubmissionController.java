@@ -1,6 +1,7 @@
 package com.project.code_judge.Controller;
 
 import com.project.code_judge.Dto.SubmissionRequest;
+import com.project.code_judge.Dto.SubmissionResponse;
 import com.project.code_judge.Entity.Submission;
 import com.project.code_judge.Service.SubmissionService;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,6 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/submissions")
-@CrossOrigin(origins = "http://localhost:5173")
 public class SubmissionController {
     private final SubmissionService submissionService;
 
@@ -27,7 +27,7 @@ public class SubmissionController {
 
 
     @GetMapping("/{id}")
-    public ResponseEntity<Submission> getSubmissionStatus(@PathVariable UUID id){
+    public ResponseEntity<SubmissionResponse> getSubmissionStatus(@PathVariable UUID id){
         return ResponseEntity.ok(submissionService.getSubmission(id));
     }
 

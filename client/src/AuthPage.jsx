@@ -30,12 +30,12 @@ function AuthPage({ mode }) {
         try {
             if (isLogin) {
                 const data = await loginUser({ email: form.email, password: form.password });
-                if (data?.token && data?.username) {
-                    setStoredAuth({ token: data.token, username: data.username });
+                if (data?.username) {
+                    setStoredAuth({ username: data.username });
                     navigate("/");
                     return;
                 }
-                setStatus({ loading: false, error: "Login succeeded but no token returned.", success: "" });
+                setStatus({ loading: false, error: "Login succeeded but no user info returned.", success: "" });
                 return;
             }
 
@@ -45,14 +45,13 @@ function AuthPage({ mode }) {
                 password: form.password,
             });
 
-            if (data?.token && data?.username) {
-                setStoredAuth({ token: data.token, username: data.username });
+            if (data?.username) {
+                setStoredAuth({ username: data.username });
                 navigate("/");
                 return;
             }
 
-            setStatus({ loading: false, error: "", success: "Registration successful. Please log in." });
-            navigate("/login");
+            setStatus({ loading: false, error: "Registration succeeded but no user info returned.", success: "" });
         } catch (error) {
             const message = error?.response?.data?.message || error?.message || "Something went wrong.";
             setStatus({ loading: false, error: message, success: "" });

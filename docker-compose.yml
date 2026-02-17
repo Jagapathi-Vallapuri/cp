@@ -17,6 +17,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  redis:
+    image: redis:alpine
+    container_name: judge-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - judge-net
+    command: redis-server --appendonly yes
 
   judge-worker:
     build: ./CodeExecutor

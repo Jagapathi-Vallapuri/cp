@@ -9,7 +9,7 @@ import { getStoredAuth } from "./auth";
 
 const RequireAuth = ({ children }) => {
     const auth = getStoredAuth();
-    if (!auth?.token || !auth?.username) {
+    if (!auth?.username) {
         return <Navigate to="/login" replace />;
     }
     return children;

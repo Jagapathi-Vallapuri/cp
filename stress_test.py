@@ -1,4 +1,3 @@
-import argparse
 import concurrent.futures
 import os
 import random
@@ -7,15 +6,22 @@ from collections import Counter, deque
 
 import requests
 
-# CONFIGURATION (override via CLI or env)
-DEFAULT_API_URL = os.getenv("API_URL", "http://localhost:8080/api/submit")
-DEFAULT_PROBLEM_ID = int(os.getenv("PROBLEM_ID", "1"))
-DEFAULT_INPUT = os.getenv("TEST_INPUT", "41\n")
-DEFAULT_USERS = int(os.getenv("USERS", "5"))
-DEFAULT_CONCURRENCY = int(os.getenv("CONCURRENCY", "10"))
-DEFAULT_DURATION = int(os.getenv("DURATION_SEC", "30"))
-DEFAULT_POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "0.5"))
-DEFAULT_SUBMIT_INTERVAL = float(os.getenv("SUBMIT_INTERVAL", "0.1"))
+# Simple configuration (edit values here)
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8080")
+API_URL = os.getenv("API_URL", f"{API_BASE_URL}/api/submissions")
+AUTH_LOGIN_URL = os.getenv("AUTH_LOGIN_URL", f"{API_BASE_URL}/api/auth/login")
+AUTH_REGISTER_URL = os.getenv("AUTH_REGISTER_URL", f"{API_BASE_URL}/api/auth/register")
+PROBLEM_ID = int(os.getenv("PROBLEM_ID", "1"))
+USERS = int(os.getenv("USERS", "5"))
+CONCURRENCY = int(os.getenv("CONCURRENCY", "10"))
+DURATION_SEC = int(os.getenv("DURATION_SEC", "30"))
+POLL_INTERVAL = float(os.getenv("POLL_INTERVAL", "0.5"))
+SUBMIT_INTERVAL = float(os.getenv("SUBMIT_INTERVAL", "0.1"))
+POLL_TIMEOUT_SEC = int(os.getenv("POLL_TIMEOUT_SEC", "60"))
+AUTH_EMAIL = os.getenv("AUTH_EMAIL", "demo@example.com")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "password123")
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "demo_user")
+AUTO_REGISTER = os.getenv("AUTO_REGISTER", "true").lower() == "true"
 
 
 PROGRAMS = {
@@ -129,13 +135,11 @@ def pick_case():
     return random.choices(cases, weights=weights, k=1)[0]
 
 
-def submit_job(session, api_url, problem_id, username, language, case_name, code, test_input):
+def submit_job(session, api_url, problem_id, language, case_name, code):
     payload = {
         "language": language,
         "code": code,
-        "input": test_input,
         "problemId": problem_id,
-        "username": username,
     }
 
     start = time.time()
@@ -159,6 +163,32 @@ def submit_job(session, api_url, problem_id, username, language, case_name, code
     }
 
 
+def login_and_get_token(session):
+    login_payload = {
+        "email": AUTH_EMAIL,
+        "password": AUTH_PASSWORD,
+    }
+    resp = session.post(AUTH_LOGIN_URL, json=login_payload, timeout=10)
+    if resp.status_code == 200:
+        return resp.json().get("token")
+
+    if AUTO_REGISTER:
+        register_payload = {
+            "username": AUTH_USERNAME,
+            "email": AUTH_EMAIL,
+            "password": AUTH_PASSWORD,
+        }
+        reg_resp = session.post(AUTH_REGISTER_URL, json=register_payload, timeout=10)
+        if reg_resp.status_code not in (200, 201):
+            return None
+
+        resp = session.post(AUTH_LOGIN_URL, json=login_payload, timeout=10)
+        if resp.status_code == 200:
+            return resp.json().get("token")
+
+    return None
+
+
 def poll_status(session, api_url, submission_id, poll_interval, timeout_sec):
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
@@ -179,13 +209,14 @@ def poll_status(session, api_url, submission_id, poll_interval, timeout_sec):
     return {"ok": False, "error": "Timeout waiting for completion"}
 
 
-def run_stress_test(args):
+def run_stress_test():
     print("--- STARTING STRESS TEST ---")
-    print(f"API: {args.api_url}")
-    print(f"Problem ID: {args.problem_id}")
-    print(f"Users: {args.users}")
-    print(f"Concurrency: {args.concurrency}")
-    print(f"Duration: {args.duration_sec}s")
+    print(f"API: {API_URL}")
+    print(f"Auth login: {AUTH_LOGIN_URL}")
+    print(f"Problem ID: {PROBLEM_ID}")
+    print(f"Users: {USERS}")
+    print(f"Concurrency: {CONCURRENCY}")
+    print(f"Duration: {DURATION_SEC}s")
     print("Case mix:", CASE_WEIGHTS)
     print("-" * 50)
 
@@ -198,33 +229,35 @@ def run_stress_test(args):
     in_flight = deque()
 
     start_time = time.time()
-    end_time = start_time + args.duration_sec
+    end_time = start_time + DURATION_SEC
 
     with requests.Session() as session:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+        token = login_and_get_token(session)
+        if not token:
+            print("[ERROR] Could not obtain auth token. Check credentials or disable AUTO_REGISTER.")
+            return
+        session.headers.update({"Authorization": f"Bearer {token}"})
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as executor:
             futures = set()
 
             while time.time() < end_time or futures:
-                while time.time() < end_time and len(futures) < args.concurrency:
+                while time.time() < end_time and len(futures) < CONCURRENCY:
                     language = random.choice(list(PROGRAMS.keys()))
                     case_name = pick_case()
                     code = PROGRAMS[language][case_name]
-                    username = f"user_{random.randint(1, args.users)}"
-
                     future = executor.submit(
                         submit_job,
                         session,
-                        args.api_url,
-                        args.problem_id,
-                        username,
+                        API_URL,
+                        PROBLEM_ID,
                         language,
                         case_name,
                         code,
-                        args.test_input,
                     )
                     futures.add(future)
                     submitted += 1
-                    time.sleep(args.submit_interval)
+                    time.sleep(SUBMIT_INTERVAL)
 
                 done, futures = concurrent.futures.wait(
                     futures, timeout=0.1, return_when=concurrent.futures.FIRST_COMPLETED
@@ -239,10 +272,10 @@ def run_stress_test(args):
                     if result.get("id"):
                         in_flight.append(result["id"])
 
-            poll_deadline = time.time() + args.poll_timeout_sec
+            poll_deadline = time.time() + POLL_TIMEOUT_SEC
             while in_flight and time.time() < poll_deadline:
                 submission_id = in_flight.popleft()
-                poll = poll_status(session, args.api_url, submission_id, args.poll_interval, args.poll_timeout_sec)
+                poll = poll_status(session, API_URL, submission_id, POLL_INTERVAL, POLL_TIMEOUT_SEC)
                 if poll["ok"]:
                     completed += 1
                     verdicts[poll.get("verdict") or "UNKNOWN"] += 1
@@ -265,19 +298,5 @@ def run_stress_test(args):
         print(f"  {k}: {v}")
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Distributed Code Judge Stress Test")
-    parser.add_argument("--api-url", default=DEFAULT_API_URL)
-    parser.add_argument("--problem-id", type=int, default=DEFAULT_PROBLEM_ID)
-    parser.add_argument("--test-input", default=DEFAULT_INPUT)
-    parser.add_argument("--users", type=int, default=DEFAULT_USERS)
-    parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
-    parser.add_argument("--duration-sec", type=int, default=DEFAULT_DURATION)
-    parser.add_argument("--submit-interval", type=float, default=DEFAULT_SUBMIT_INTERVAL)
-    parser.add_argument("--poll-interval", type=float, default=DEFAULT_POLL_INTERVAL)
-    parser.add_argument("--poll-timeout-sec", type=int, default=60)
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    run_stress_test(parse_args())
+    run_stress_test()

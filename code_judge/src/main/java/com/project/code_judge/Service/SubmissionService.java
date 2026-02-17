@@ -1,6 +1,7 @@
 package com.project.code_judge.Service;
 
 import com.project.code_judge.Config.RabbitMQConfig;
+import com.project.code_judge.Dto.SubmissionResponse;
 import com.project.code_judge.Entity.*;
 import com.project.code_judge.Repository.ProblemRepository;
 import com.project.code_judge.Repository.SubmissionRepository;
@@ -62,8 +63,27 @@ public class SubmissionService {
         return savedSubmission;
     }
 
-    public Submission getSubmission(UUID id){
-        return submissionRepository.findById(id).orElseThrow(() -> new RuntimeException("Submission not found"));
+    public SubmissionResponse getSubmission(UUID id){
+        Submission submission = submissionRepository.findById(id).orElseThrow(() -> new RuntimeException("Submission not found"));
+        return mapToResponse(submission);
+    }
+
+    private SubmissionResponse mapToResponse(Submission submission) {
+        SubmissionResponse response = new SubmissionResponse();
+        response.setId(submission.getId());
+        response.setStatus(submission.getStatus());
+        response.setVerdict(submission.getVerdict());
+        response.setSubmissionTime(submission.getSubmissionTime());
+        response.setTimeTaken(submission.getTimeTaken());
+        response.setMemoryUsed(submission.getMemoryUsed());
+        response.setError(submission.getError());
+
+        if (submission.getProblem() != null) {
+            response.setProblemId(submission.getProblem().getId());
+            response.setProblemTitle(submission.getProblem().getTitle());
+        }
+
+        return response;
     }
 
 }

@@ -1,24 +1,23 @@
 package com.project.code_judge.Service;
 
-import com.project.code_judge.Dto.LoginResponse;
 import com.project.code_judge.Dto.RegisterUser;
 import com.project.code_judge.Dto.UserLogin;
 import com.project.code_judge.Dto.UserResponse;
 import com.project.code_judge.Entity.User;
 import com.project.code_judge.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
 
     public UserResponse registerUser(RegisterUser dto){
         if(userRepository.findByEmail(dto.getEmail()).isPresent()){
@@ -32,18 +31,8 @@ public class AuthService {
         return mapper(user);
     }
 
-    public LoginResponse login(UserLogin dto){
-        User user = userRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new IllegalArgumentException("Invalid email"));
-        if(!passwordEncoder.matches(dto.getPassword(), user.getPassword())){
-            throw new IllegalArgumentException("Invalid password");
-        }
-        String username = user.getUsername();
-        Map<String, Object> claims = Map.of();
-        String token = jwtService.buildToken(claims, username);
-        LoginResponse loginResponse = new LoginResponse();
-        loginResponse.setUsername(user.getUsername());
-        loginResponse.setToken(token);
-        return loginResponse;
+    public Authentication authenticate(UserLogin dto){
+        return authenticationManager.authenticate( new UsernamePasswordAuthenticationToken( dto.getEmail(), dto.getPassword()));
     }
 
 

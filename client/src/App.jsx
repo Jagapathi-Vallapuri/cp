@@ -7,6 +7,7 @@ import {
     getProblems,
     getProblemDetails,
     getSubmissionStatus,
+    logoutUser,
     submitCode,
 } from "./api";
 import "./App.css";
@@ -51,6 +52,10 @@ function App() {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [sidebarOpen]);
+
+    useEffect(() => {
+        setAuth(getStoredAuth());
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -142,7 +147,6 @@ function App() {
         try {
             const submission = await submitCode({
                 problemId: selectedProblemId,
-                username: auth?.username || "guest",
                 language,
                 code,
             });
@@ -225,7 +229,11 @@ function App() {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await logoutUser();
+        } catch (error) {
+        }
         clearStoredAuth();
         setAuth(null);
     };

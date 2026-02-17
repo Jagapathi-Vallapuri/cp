@@ -5,14 +5,7 @@ const api = axios.create({
     headers: {
         "Content-Type": "application/json",
     },
-});
-
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+    withCredentials: true,
 });
 
 export const getProblems = async () => {
@@ -72,6 +65,16 @@ export const loginUser = async (payload) => {
         return res.data;
     } catch (error) {
         console.error("Error logging in:", error);
+        throw error;
+    }
+};
+
+export const logoutUser = async () => {
+    try {
+        const res = await api.post("/auth/logout");
+        return res.data;
+    } catch (error) {
+        console.error("Error logging out:", error);
         throw error;
     }
 };
