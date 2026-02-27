@@ -1,11 +1,14 @@
 package com.project.code_judge.Service;
 
 import com.project.code_judge.Config.RabbitMQConfig;
-import com.project.code_judge.Dto.SubmissionResponse;
-import com.project.code_judge.Entity.*;
-import com.project.code_judge.Repository.ProblemRepository;
+import com.project.code_judge.Dto.*;
+import com.project.code_judge.Entity.Problem;
+import com.project.code_judge.Entity.Submission;
+import com.project.code_judge.Entity.SubmissionStatus;
+import com.project.code_judge.Entity.User;
 import com.project.code_judge.Repository.SubmissionRepository;
 import com.project.code_judge.Repository.UserRepository;
+import com.project.code_judge.Repository.ProblemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,12 +32,12 @@ public class SubmissionService {
                 .orElseThrow(() -> new RuntimeException("Problem not found"));
 
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if(authentication == null || authentication.getPrincipal() == null)
+        if(authentication == null || !authentication.isAuthenticated())
             throw new RuntimeException("User not authenticated");
 
-        String username = (String) authentication.getPrincipal();
+        String username =  authentication.getName();
 
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByEmail(username).orElseThrow(() -> new RuntimeException("User not found"));
         Submission submission = new Submission();
         submission.setCode(code);
         submission.setUser(user);

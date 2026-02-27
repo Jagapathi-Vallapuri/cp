@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser, registerUser } from "./api";
+import { loginUser, registerUser, googleLogin } from "./api";
 import { getStoredAuth, setStoredAuth } from "./auth";
 
 function AuthPage({ mode }) {
@@ -58,6 +58,40 @@ function AuthPage({ mode }) {
         }
     };
 
+    useEffect(() => {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        if (!clientId) return;
+
+        const handleCredentialResponse = async (response) => {
+            setStatus({ loading: true, error: "", success: "" });
+            try {
+                const data = await googleLogin(response.credential);
+                if (data?.username) {
+                    setStoredAuth({ username: data.username });
+                    navigate("/");
+                    return;
+                }
+                setStatus({ loading: false, error: "Google login succeeded but no user info returned.", success: "" });
+            } catch (err) {
+                const message = err?.response?.data?.message || err?.message || "Google login failed.";
+                setStatus({ loading: false, error: message, success: "" });
+            }
+        };
+
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+            window.google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleCredentialResponse,
+            });
+
+            // Render button into our container if present
+            const container = document.getElementById("google-signin-button");
+            if (container) {
+                window.google.accounts.id.renderButton(container, { theme: "outline", size: "large" });
+            }
+        }
+    }, [navigate]);
+
     return (
         <div className="auth-page">
             <div className="auth-card">
@@ -113,6 +147,13 @@ function AuthPage({ mode }) {
                         {status.loading ? "Please wait..." : isLogin ? "Login" : "Create account"}
                     </button>
                 </form>
+
+                {/* Google Sign-In button (login only) */}
+                {isLogin && (
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: "1rem" }}>
+                        <div id="google-signin-button" />
+                    </div>
+                )}
 
                 <div className="auth-footer">
                     {isLogin ? (

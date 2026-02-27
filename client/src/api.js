@@ -78,3 +78,13 @@ export const logoutUser = async () => {
         throw error;
     }
 };
+
+export const googleLogin = async (token) => {
+    try {
+        const res = await api.post("/auth/google", { token });
+        return res.data;
+    } catch (error) {
+        console.error("Error with google login:", error);
+        throw error;
+    }
+};

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
+import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -17,6 +18,23 @@ const templates = {
     cpp: `#include <bits/stdc++.h>\n\nint main() {\n    int x;\n    std::cin >> x;\n    std::cout << x + 1;\n    return 0;\n}`,
     python: `x = int(input())\nprint(x + 1)`,
     java: `import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        if (scanner.hasNextInt()) {\n            int x = scanner.nextInt();\n            System.out.println(x + 1);\n        }\n        scanner.close();\n    }\n}`
+};
+
+const monacoLanguageMap = {
+    cpp: "cpp",
+    python: "python",
+    java: "java",
+};
+
+const basicRefactor = (sourceCode) => {
+    const normalized = sourceCode
+        .replace(/\r\n?/g, "\n")
+        .split("\n")
+        .map((line) => line.replace(/[\t ]+$/g, ""))
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n");
+
+    return normalized.trimEnd();
 };
 
 function App() {
@@ -40,6 +58,9 @@ function App() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [showError, setShowError] = useState(false);
     const [copyMessage, setCopyMessage] = useState("");
+    const [editorMessage, setEditorMessage] = useState("");
+    const [problemQuery, setProblemQuery] = useState("");
+    const editorRef = useRef(null);
 
     useEffect(() => {
         if (!sidebarOpen) return;
@@ -238,6 +259,70 @@ function App() {
         setAuth(null);
     };
 
+    const handleEditorMount = (editor) => {
+        editorRef.current = editor;
+    };
+
+    const handleRefactor = async () => {
+        if (!code.trim()) {
+            setEditorMessage("Nothing to refactor.");
+            return;
+        }
+
+        try {
+            if (editorRef.current) {
+                const formatAction = editorRef.current.getAction("editor.action.formatDocument");
+                if (formatAction) {
+                    await formatAction.run();
+                    const formatted = editorRef.current.getValue();
+                    if (formatted !== code) {
+                        setCode(formatted);
+                        setEditorMessage("Refactor complete: code formatted.");
+                        return;
+                    }
+                }
+            }
+        } catch (error) {
+        }
+
+        const refactored = basicRefactor(code);
+        setCode(refactored);
+        setEditorMessage(refactored === code ? "Code already clean." : "Refactor complete: formatting and cleanup applied.");
+    };
+
+    const handleResetCode = () => {
+        setCode(templates[language] || "");
+        setEditorMessage(`Editor reset to ${language.toUpperCase()} template.`);
+    };
+
+    useEffect(() => {
+        if (!editorMessage) return;
+        const timeoutId = setTimeout(() => setEditorMessage(""), 2400);
+        return () => clearTimeout(timeoutId);
+    }, [editorMessage]);
+
+    const shortSubmissionId = submissionState.id ? `${submissionState.id.substring(0, 8)}...` : "-";
+    const hasTerminalStatus = submissionState.status === "COMPLETED" || submissionState.status === "FAILED";
+    const difficulty = selectedProblem?.difficulty || "UNKNOWN";
+    const difficultyTone = String(difficulty).toLowerCase();
+    const filteredProblems = useMemo(() => {
+        const term = problemQuery.trim().toLowerCase();
+        if (!term) return problems;
+
+        return problems.filter((problem) => {
+            const haystack = [
+                problem.title,
+                problem.difficulty,
+                problem.description,
+                String(problem.id ?? ""),
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            return haystack.includes(term);
+        });
+    }, [problemQuery, problems]);
+
     return (
         <div className="app">
             <header className="app-header">
@@ -248,8 +333,20 @@ function App() {
                             <path d="M15 6L21 12L15 18" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                     </div>
-                    <h1 className="app-title">Online Judge</h1>
+                    <div>
+                        <h1 className="app-title">Online Judge Studio</h1>
+                        <p className="app-subtitle">Practice. Submit. Improve.</p>
+                    </div>
                 </div>
+
+                <div className="header-stats" aria-label="Quick stats">
+                    <span className="chip">Problems: {problems.length}</span>
+                    <span className={`chip difficulty-chip ${difficultyTone}`}>{difficulty}</span>
+                    {selectedProblem?.testCaseCount != null && (
+                        <span className="chip">Tests: {selectedProblem.testCaseCount}</span>
+                    )}
+                </div>
+
                 <div className="auth-bar">
                     {auth?.username ? (
                         <>
@@ -273,17 +370,18 @@ function App() {
                             type="button"
                             onClick={() => setSidebarOpen((prev) => !prev)}
                             aria-expanded={sidebarOpen}
-                            aria-label={sidebarOpen ? "Collapse problem list" : "Open problem list"}
-                        />
-                        <span className="drawer-label">Problems</span>
+                            aria-label={sidebarOpen ? "Hide problem list" : "Show problem list"}
+                        >
+                            <span className="sidebar-toggle-icon" aria-hidden>{sidebarOpen ? "◂" : "▸"}</span>
+                            <span className="sidebar-toggle-text">{sidebarOpen ? "Hide Problems" : "Show Problems"}</span>
+                            <span className="sidebar-toggle-count">{problems.length}</span>
+                        </button>
                     </div>
 
-                    {sidebarOpen && (
-                        <>
-                            <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />
-                            <aside className="panel sidebar drawer">
+                    <div className={`problem-drawer-wrap ${sidebarOpen ? "open" : "closed"}`} aria-hidden={!sidebarOpen}>
+                        <aside className="panel sidebar drawer">
                                 <div className="drawer-header">
-                                    <h2 className="sidebar-title">Problems</h2>
+                                    <h2 className="sidebar-title">All Problems</h2>
                                     <button
                                         className="drawer-close"
                                         type="button"
@@ -294,40 +392,63 @@ function App() {
                                     </button>
                                 </div>
 
+                                <div className="problem-tools">
+                                    <input
+                                        className="problem-search"
+                                        type="text"
+                                        value={problemQuery}
+                                        onChange={(event) => setProblemQuery(event.target.value)}
+                                        placeholder="Search title, difficulty..."
+                                        aria-label="Search problems"
+                                    />
+                                    <span className="problem-counter">Showing {filteredProblems.length} / {problems.length}</span>
+                                </div>
+
                                 {problemsLoading && <p>Loading problems...</p>}
                                 {problemsError && <p className="status-error">{problemsError}</p>}
 
                                 <div className="problem-list">
-                                    {problems.map((problem) => (
-                                        <div
-                                            key={problem.id}
-                                            className={`problem-card ${selectedProblemId === problem.id ? "active" : ""}`}
-                                            onClick={() => {
-                                                setSelectedProblemId(problem.id);
-                                                setSidebarOpen(false);
-                                            }}
-                                            role="button"
-                                            tabIndex={0}
-                                            onKeyDown={(event) => {
-                                                if (event.key === "Enter") {
+                                    {filteredProblems.map((problem, index) => {
+                                        const tone = String(problem.difficulty || "unknown").toLowerCase();
+                                        return (
+                                            <div
+                                                key={problem.id}
+                                                className={`problem-card ${selectedProblemId === problem.id ? "active" : ""}`}
+                                                onClick={() => {
                                                     setSelectedProblemId(problem.id);
-                                                    setSidebarOpen(false);
-                                                }
-                                            }}
-                                        >
-                                            <h3>{problem.title}</h3>
-                                            <div className="problem-meta">
-                                                {problem.difficulty && <span className="pill">{problem.difficulty}</span>}
+                                                }}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter") {
+                                                        setSelectedProblemId(problem.id);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="problem-row">
+                                                    <h3>{problem.title}</h3>
+                                                    <span className="problem-index">{String(index + 1).padStart(2, "0")}</span>
+                                                </div>
+                                                <div className="problem-meta">
+                                                    {problem.difficulty && <span className={`pill ${tone}`}>{problem.difficulty}</span>}
+                                                    {problem.testCaseCount != null && <span className="pill neutral">{problem.testCaseCount} tests</span>}
+                                                    {problem.timeLimitSeconds != null && <span className="pill neutral">{problem.timeLimitSeconds}s</span>}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
+                                    {!problemsLoading && filteredProblems.length === 0 && (
+                                        <div className="problem-list-empty">No problems match your search.</div>
+                                    )}
                                 </div>
-                            </aside>
-                        </>
-                    )}
+                        </aside>
+                    </div>
 
                     <aside className="panel problem-detail side-panel">
-                        <h2>{selectedProblem?.title || "Select a problem"}</h2>
+                        <div className="detail-header">
+                            <h2>{selectedProblem?.title || "Select a problem"}</h2>
+                            <span className={`badge ${difficultyTone}`}>{difficulty}</span>
+                        </div>
                         <div className="problem-markdown">
                             <ReactMarkdown
                                 remarkPlugins={[remarkMath]}
@@ -353,6 +474,11 @@ function App() {
 
                 <main className="content">
                     <section className="panel submission-panel code-panel">
+                        <div className="studio-head">
+                            <h2 className="studio-title">Code Workspace</h2>
+                            <p className="studio-copy">Write your solution and submit when ready.</p>
+                        </div>
+
                         <div className="form-row">
                             <div className="form-field">
                                 <label htmlFor="language">Language</label>
@@ -366,40 +492,62 @@ function App() {
                                     <option value="java">Java</option>
                                 </select>
                             </div>
-                            <div className="form-field">
-                                <label>Username</label>
-                                <div className="username-chip">
-                                    {auth?.username || "guest"}
-                                </div>
-                            </div>
                         </div>
 
-                        <textarea
-                            className="editor"
-                            value={code}
-                            onChange={(event) => setCode(event.target.value)}
-                        />
+                        <div className="editor-toolbar" role="toolbar" aria-label="Code editor actions">
+                            <button className="tool-btn" type="button" onClick={handleRefactor}>Refactor</button>
+                            <button className="tool-btn ghost" type="button" onClick={handleResetCode}>Reset</button>
+                            {editorMessage && <span className="editor-message">{editorMessage}</span>}
+                        </div>
+
+                        <div className="editor-shell">
+                            <Editor
+                                height="540px"
+                                language={monacoLanguageMap[language] || "plaintext"}
+                                value={code}
+                                onChange={(value) => setCode(value || "")}
+                                onMount={handleEditorMount}
+                                theme="vs-dark"
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 14,
+                                    lineNumbers: "on",
+                                    smoothScrolling: true,
+                                    padding: { top: 10, bottom: 10 },
+                                    automaticLayout: true,
+                                    tabSize: 4,
+                                    insertSpaces: true,
+                                    formatOnPaste: true,
+                                    formatOnType: true,
+                                }}
+                            />
+                        </div>
 
                         <div className="action-row">
                             <button className="submit-btn" onClick={handleSubmit} disabled={submissionState.loading}>
                                 {submissionState.loading ? "Judging..." : "Submit Solution"}
                             </button>
+                            {submissionState.status && (
+                                <span className={`judge-state ${hasTerminalStatus ? "done" : "running"}`}>
+                                    {hasTerminalStatus ? "Latest run completed" : "Judging in progress"}
+                                </span>
+                            )}
                         </div>
 
                         {submissionState.status && (
                             <div className="status-card">
                                 <div className="status-card-header">
                                     <div>
-                                        <div><strong>ID:</strong> {submissionState.id?.substring(0, 8)}...</div>
+                                        <div><strong>ID:</strong> {shortSubmissionId}</div>
                                         <div><strong>Status:</strong> {submissionState.status}</div>
                                     </div>
-                                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                    <div className="status-actions">
                                         {submissionState.id && (
                                             <button className="copy-btn" onClick={copySubmissionId} aria-label="Copy submission id">
                                                 Copy ID
                                             </button>
                                         )}
-                                        {copyMessage && <span style={{ fontSize: "0.85rem" }}>{copyMessage}</span>}
+                                        {copyMessage && <span className="copy-feedback">{copyMessage}</span>}
                                         {submissionState.error && (
                                             <button className="error-toggle" onClick={() => setShowError((s) => !s)}>
                                                 {showError ? "Hide Error" : "Show Error"}
@@ -408,7 +556,7 @@ function App() {
                                     </div>
                                 </div>
 
-                                <div style={{ marginTop: "0.6rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+                                <div className="status-summary">
                                     {submissionState.verdict && (
                                         <div className={`verdict ${submissionState.verdict === "ACCEPTED" ? "ok" : "bad"}`}>
                                             {submissionState.verdict}
@@ -423,15 +571,15 @@ function App() {
                                 </div>
 
                                 {submissionState.error && (
-                                    <div style={{ marginTop: "0.75rem" }}>
-                                        <strong style={{ display: "block", marginBottom: "0.35rem" }}>Error trace</strong>
+                                    <div className="error-block">
+                                        <strong className="error-title">Error trace</strong>
                                         {showError ? (
                                             <div className="error-preview" role="region">
-                                                <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>{submissionState.error}</pre>
+                                                <pre className="error-content expanded">{submissionState.error}</pre>
                                             </div>
                                         ) : (
-                                            <div className="error-preview" style={{ maxHeight: "3rem" }}>
-                                                <pre style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>{submissionState.error}</pre>
+                                            <div className="error-preview compact">
+                                                <pre className="error-content compact">{submissionState.error}</pre>
                                             </div>
                                         )}
                                     </div>

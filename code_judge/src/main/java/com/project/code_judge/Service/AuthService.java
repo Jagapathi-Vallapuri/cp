@@ -3,6 +3,7 @@ package com.project.code_judge.Service;
 import com.project.code_judge.Dto.RegisterUser;
 import com.project.code_judge.Dto.UserLogin;
 import com.project.code_judge.Dto.UserResponse;
+import com.project.code_judge.Entity.AuthProvider;
 import com.project.code_judge.Entity.User;
 import com.project.code_judge.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class AuthService {
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
+        user.setProvider(AuthProvider.LOCAL);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         userRepository.save(user);
         return mapper(user);
@@ -37,9 +39,6 @@ public class AuthService {
 
 
     public UserResponse mapper(User user){
-        UserResponse userResponse = new UserResponse();
-        userResponse.setUsername(user.getUsername());
-        userResponse.setEmail(user.getEmail());
-        return userResponse;
+        return new UserResponse(user.getUsername(), user.getEmail());
     }
 }

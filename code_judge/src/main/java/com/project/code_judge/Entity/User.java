@@ -4,8 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +18,11 @@ import java.util.List;
 @Table(name = "users")
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID=1L;
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
@@ -28,7 +36,9 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AuthProvider provider = AuthProvider.LOCAL;
+    private AuthProvider provider;
+
+    private String providerId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -36,5 +46,7 @@ public class User {
 
     @JoinColumn(name = "submission_history")
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<Submission> submissionHistory = new ArrayList<>();
 }

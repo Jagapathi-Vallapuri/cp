@@ -76,7 +76,7 @@ public class RateLimitFilter implements Filter {
         var probe = bucket.tryConsumeAndReturnRemaining(1);
 
 
-        if(bucket.tryConsume(1)){
+        if(probe.isConsumed()){
             response.addHeader("X-Rate-Limit-Remaining", String.valueOf(bucket.getAvailableTokens()));
             filterChain.doFilter(request, response);
         }else{

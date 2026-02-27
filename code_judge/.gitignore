@@ -31,3 +31,19 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment variables and sensitive data ###
+.env
+.env.local
+.env.*.local
+application-prod.properties
+application-prod-*.properties
+application-dev.properties
+application-test.properties
+
+### Credentials ###
+*.pem
+*.key
+*.jks
+*.p12
+

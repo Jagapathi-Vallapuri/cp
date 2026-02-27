@@ -25,7 +25,8 @@ public class ResultConsumer {
         submission.setStatus(SubmissionStatus.COMPLETED);
         submission.setError(result.getError());
         submission.setVerdict(result.getVerdict());
-
+        submission.setTimeTaken(result.getTime_ms());
+        submission.setMemoryUsed(result.getMemory_kb());
         submissionRepository.save(submission);
     }
 }
