@@ -1,19 +1,15 @@
 package com.project.code_judge.Entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "users")
 @NoArgsConstructor
@@ -30,8 +26,6 @@ public class User implements Serializable {
     private String email;
 
     private String username;
-
-    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -46,7 +40,5 @@ public class User implements Serializable {
 
     @JoinColumn(name = "submission_history")
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private List<Submission> submissionHistory = new ArrayList<>();
 }

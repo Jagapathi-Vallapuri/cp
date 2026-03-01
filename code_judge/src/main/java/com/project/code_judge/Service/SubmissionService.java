@@ -27,7 +27,7 @@ public class SubmissionService {
     private final ProblemRepository problemRepository;
     private final RabbitTemplate rabbitTemplate;
 
-    public Submission submitCode(Long problemId, String language, String code){
+    public SubmissionResponse submitCode(Long problemId, String language, String code){
         Problem problem = problemRepository.findById(problemId)
                 .orElseThrow(() -> new RuntimeException("Problem not found"));
 
@@ -45,9 +45,7 @@ public class SubmissionService {
         submission.setStatus(SubmissionStatus.PENDING);
         submission.setLanguage(language);
         submission.setProblem(problem);
-
         Submission savedSubmission = submissionRepository.save(submission);
-
 
         Map<String, Object> message = new HashMap<>();
         message.put("id", savedSubmission.getId().toString());
@@ -58,16 +56,25 @@ public class SubmissionService {
         message.put("problem_id", submission.getProblem().getId());
         message.put("test_case_count", submission.getProblem().getTestCaseCount());
 
-
-
         rabbitTemplate.convertAndSend(RabbitMQConfig.SUBMISSION_QUEUE, message);
         System.out.println("Sent submission " + savedSubmission.getId() + " to Queue");
 
-        return savedSubmission;
+        return mapToResponse(savedSubmission);
     }
 
     public SubmissionResponse getSubmission(UUID id){
-        Submission submission = submissionRepository.findById(id).orElseThrow(() -> new RuntimeException("Submission not found"));
+        Submission submission = submissionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
+
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!submission.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized: You cannot view this submission");
+        }
+
         return mapToResponse(submission);
     }
 

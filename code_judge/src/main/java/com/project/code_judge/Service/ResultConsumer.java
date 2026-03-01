@@ -22,11 +22,17 @@ public class ResultConsumer {
         UUID submissionId = UUID.fromString(result.getId());
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new RuntimeException("Submission not found."));
-        submission.setStatus(SubmissionStatus.COMPLETED);
         submission.setError(result.getError());
         submission.setVerdict(result.getVerdict());
         submission.setTimeTaken(result.getTime_ms());
         submission.setMemoryUsed(result.getMemory_kb());
+        
+        // Set status based on whether error occurred
+        if (result.getError() != null && !result.getError().isEmpty()) {
+            submission.setStatus(SubmissionStatus.FAILED);
+        } else {
+            submission.setStatus(SubmissionStatus.COMPLETED);
+        }
         submissionRepository.save(submission);
     }
 }

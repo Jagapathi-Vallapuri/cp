@@ -11,7 +11,8 @@ public:
 
     virtual std::string get_src_filename(const std::string& id) = 0;
     virtual bool needs_compilation() = 0;
-    virtual std::string get_compile_cmd(const std::string& id) = 0;
+    virtual std::vector<std::string> get_compile_args(const std::string& id) = 0;
+
     virtual std::string get_run_cmd(const std::string& id) = 0;
     virtual std::vector<std::string> get_run_args(const std::string& id, int memory_limit_mb) = 0;    
     virtual rlim_t get_rlimit_as(int memory_limit_mb) = 0;    
@@ -24,8 +25,8 @@ public:
     std::string get_src_filename(const std::string& id) override { return "submit_" + id + ".cpp"; }
     bool needs_compilation() override { return true; }
     
-    std::string get_compile_cmd(const std::string& id) override {
-        return "g++ -O2 " + get_src_filename(id) + " -o ./bin_" + id + " 2> compile_err_" + id + ".txt";
+    std::vector<std::string> get_compile_args(const std::string& id) override {
+        return {"g++", "-O2", get_src_filename(id), "-o", "./bin_" + id};
     }
     
     std::string get_run_cmd(const std::string& id) override { return "./bin_" + id; }
@@ -49,7 +50,7 @@ class PythonStrategy : public LanguageStrategy {
 public:
     std::string get_src_filename(const std::string& id) override { return "submit_" + id + ".py"; }
     bool needs_compilation() override { return false; }
-    std::string get_compile_cmd(const std::string& id) override { return ""; }
+    std::vector<std::string> get_compile_args(const std::string& id) override { return {}; }
     std::string get_run_cmd(const std::string& id) override { return "/usr/bin/python3"; }
     
     std::vector<std::string> get_run_args(const std::string& id, int memory_limit_mb) override {
@@ -69,8 +70,8 @@ public:
     std::string get_src_filename(const std::string& id) override { return "Main.java"; }
     bool needs_compilation() override { return true; }
     
-    std::string get_compile_cmd(const std::string& id) override {
-        return "javac " + get_src_filename(id) + " 2> compile_err_" + id + ".txt";
+    std::vector<std::string> get_compile_args(const std::string& id) override {
+        return {"javac", get_src_filename(id)};
     }
     
     std::string get_run_cmd(const std::string& id) override { return "/usr/bin/java"; }

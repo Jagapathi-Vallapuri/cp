@@ -163,6 +163,7 @@ function App() {
             error: "",
             timeTaken: null,
             memoryUsed: null,
+            id: null,
         }));
 
         try {
@@ -444,36 +445,10 @@ function App() {
                         </aside>
                     </div>
 
-                    <aside className="panel problem-detail side-panel">
-                        <div className="detail-header">
-                            <h2>{selectedProblem?.title || "Select a problem"}</h2>
-                            <span className={`badge ${difficultyTone}`}>{difficulty}</span>
-                        </div>
-                        <div className="problem-markdown">
-                            <ReactMarkdown
-                                remarkPlugins={[remarkMath]}
-                                rehypePlugins={[rehypeKatex]}
-                            >
-                                {selectedProblem?.description || "Choose a problem from the list to view its statement."}
-                            </ReactMarkdown>
-                        </div>
-                        <div className="detail-meta">
-                            {selectedProblem?.difficulty && <span>Difficulty: {selectedProblem.difficulty}</span>}
-                            {selectedProblem?.timeLimitSeconds != null && (
-                                <span>Time Limit: {selectedProblem.timeLimitSeconds}s</span>
-                            )}
-                            {selectedProblem?.memoryLimitMb != null && (
-                                <span>Memory: {selectedProblem.memoryLimitMb} MB</span>
-                            )}
-                            {selectedProblem?.testCaseCount != null && (
-                                <span>Test Cases: {selectedProblem.testCaseCount}</span>
-                            )}
-                        </div>
-                    </aside>
                 </div>
 
                 <main className="content">
-                    <section className="panel submission-panel code-panel">
+                    <section className="panel code-panel">
                         <div className="studio-head">
                             <h2 className="studio-title">Code Workspace</h2>
                             <p className="studio-copy">Write your solution and submit when ready.</p>
@@ -502,7 +477,7 @@ function App() {
 
                         <div className="editor-shell">
                             <Editor
-                                height="540px"
+                                height="600px"
                                 language={monacoLanguageMap[language] || "plaintext"}
                                 value={code}
                                 onChange={(value) => setCode(value || "")}
@@ -534,7 +509,39 @@ function App() {
                             )}
                         </div>
 
-                        {submissionState.status && (
+                    </section>
+                </main>
+
+                <aside className="side-panel">
+                    <div className="problem-detail">
+                        <div className="detail-header">
+                            <h2>{selectedProblem?.title || "Select a problem"}</h2>
+                            <span className={`badge ${difficultyTone}`}>{difficulty}</span>
+                        </div>
+                        <div className="problem-markdown">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
+                            >
+                                {selectedProblem?.description || "Choose a problem from the list to view its statement."}
+                            </ReactMarkdown>
+                        </div>
+                        <div className="detail-meta">
+                            {selectedProblem?.difficulty && <span>Difficulty: {selectedProblem.difficulty}</span>}
+                            {selectedProblem?.timeLimitSeconds != null && (
+                                <span>Time Limit: {selectedProblem.timeLimitSeconds}s</span>
+                            )}
+                            {selectedProblem?.memoryLimitMb != null && (
+                                <span>Memory: {selectedProblem.memoryLimitMb} MB</span>
+                            )}
+                            {selectedProblem?.testCaseCount != null && (
+                                <span>Test Cases: {selectedProblem.testCaseCount}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {submissionState.status && (
+                        <div className="submission-panel">
                             <div className="status-card">
                                 <div className="status-card-header">
                                     <div>
@@ -570,7 +577,7 @@ function App() {
                                     )}
                                 </div>
 
-                                {submissionState.error && (
+                                {submissionState.status === "FAILED" && submissionState.error && (
                                     <div className="error-block">
                                         <strong className="error-title">Error trace</strong>
                                         {showError ? (
@@ -585,9 +592,9 @@ function App() {
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </section>
-                </main>
+                        </div>
+                    )}
+                </aside>
             </div>
         </div>
     );

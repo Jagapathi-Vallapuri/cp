@@ -1,4 +1,6 @@
 #include "sandbox.h"
+#include "utils.h"
+
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
@@ -114,8 +116,9 @@ void redirect_std_streams(const std::string &in, const std::string &out, const s
 
 
 bool Sandbox::is_correct_answer(const std::string &out_path, const std::string &exp_path) {
-    std::string cmd = "diff -w -B " + out_path + " " + exp_path + " > /dev/null";
-    return (system(cmd.c_str()) == 0);
+    std::vector<std::string> args = {"diff", "-w", "-B", out_path, exp_path};
+    int rc = run_command(args, nullptr);
+    return (rc == 0);
 }
 
 ExecutionResult Sandbox::run(LanguageStrategy &strategy,
@@ -127,6 +130,8 @@ ExecutionResult Sandbox::run(LanguageStrategy &strategy,
                              long memory_limit_mb) 
 {
     std::string error_file = "err_" + id + ".txt";
+    ScopedFile err_guard(error_file);
+
     int pipe_fd[2];
     if (pipe(pipe_fd) == -1) return {INTERNAL_ERROR, 0, 0, -1, "Pipe failed"};
 
@@ -149,6 +154,9 @@ ExecutionResult Sandbox::run(LanguageStrategy &strategy,
         
         rlimit fsize = {10 * 1024 * 1024, 10 * 1024 * 1024};
         setrlimit(RLIMIT_FSIZE, &fsize);
+
+        rlimit as_lim = { strategy.get_rlimit_as(memory_limit_mb), strategy.get_rlimit_as(memory_limit_mb) };
+        setrlimit(RLIMIT_AS, &as_lim);
 
         auto args = strategy.get_run_args(id, memory_limit_mb);
         auto c_args = to_c_args(args);
